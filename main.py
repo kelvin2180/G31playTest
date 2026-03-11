@@ -13,6 +13,7 @@ from agents.orchestrator import Orchestrator
 from emulator import EmulatorController
 
 ui_queue = queue.Queue()
+emulator_action_queue = queue.Queue() # Thread-safe queue for emulator actions (save/load)
 global_emulator = None
 agent_paused = True # Start paused so human can play
 
@@ -25,6 +26,18 @@ def emulator_thread():
         if global_emulator is None:
             time.sleep(0.1)
             continue
+            
+        try:
+            while not emulator_action_queue.empty():
+                action, path = emulator_action_queue.get_nowait()
+                if action == "save":
+                    global_emulator.save_state(path)
+                    ui_queue.put({"action_status": f"State saved to {os.path.basename(path)}"})
+                elif action == "load":
+                    global_emulator.load_state(path)
+                    ui_queue.put({"action_status": f"State loaded from {os.path.basename(path)}"})
+        except queue.Empty:
+            pass
             
         start_time = time.time()
         
@@ -287,16 +300,14 @@ class AgentApp(ctk.CTk):
         if global_emulator:
             save_path = filedialog.asksaveasfilename(defaultextension=".ss", filetypes=[("Save States", "*.ss")])
             if save_path:
-                global_emulator.save_state(save_path)
-                ui_queue.put({"action_status": f"State saved to {os.path.basename(save_path)}"})
+                emulator_action_queue.put(("save", save_path))
 
     def load_state_ui(self):
         global global_emulator
         if global_emulator:
             load_path = filedialog.askopenfilename(filetypes=[("Save States", "*.ss"), ("All Files", "*.*")])
             if load_path:
-                global_emulator.load_state(load_path)
-                ui_queue.put({"action_status": f"State loaded from {os.path.basename(load_path)}"})
+                emulator_action_queue.put(("load", load_path))
 
     def update_ui(self):
         try:

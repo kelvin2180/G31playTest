@@ -112,14 +112,20 @@ class EmulatorController:
         
     def save_state(self, filepath):
         """Saves an emulator state snapshot."""
-        state_data = self.core.save_raw_state()
-        if state_data:
-            with open(filepath, 'wb') as f:
-                f.write(state_data)
+        try:
+            state_data = self.core.save_raw_state()
+            if state_data:
+                with open(filepath, 'wb') as f:
+                    f.write(state_data)
+        except Exception as e:
+            print(f"Failed to save state: {e}")
                 
     def load_state(self, filepath):
         """Loads an emulator state snapshot."""
         if os.path.exists(filepath):
-            with open(filepath, 'rb') as f:
-                state_data = f.read()
-            self.core.load_raw_state(state_data)
+            try:
+                with open(filepath, 'rb') as f:
+                    state_data = f.read()
+                self.core.load_raw_state(state_data)
+            except Exception as e:
+                print(f"Failed to load state: {e}")
