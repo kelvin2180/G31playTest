@@ -3,6 +3,7 @@ import queue
 import time
 import os
 import cv2
+import numpy as np
 import customtkinter as ctk
 from PIL import Image
 import tkinter.filedialog as filedialog
