@@ -147,7 +147,13 @@ def agent_thread():
         previous_frame = frames[-1]
         previous_actions_taken = llm_actions
         
-        metrics_str = f"Calls: {total_model_calls} | In: {total_in_tokens} | Out: {total_out_tokens} | Latency: {latency:.2f}s"
+        # Calculate cost based on gemini-3.1-flash-lite-preview pricing: 
+        # $0.25 per 1M input tokens, $1.50 per 1M output tokens
+        cost_in = (total_in_tokens / 1_000_000) * 0.25
+        cost_out = (total_out_tokens / 1_000_000) * 1.50
+        total_cost = cost_in + cost_out
+        
+        metrics_str = f"Calls: {total_model_calls} | In: {total_in_tokens} | Out: {total_out_tokens} | Cost: ${total_cost:.5f}"
         
         ui_queue.put({
             "state": state,
