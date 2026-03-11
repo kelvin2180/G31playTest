@@ -131,7 +131,7 @@ def agent_thread():
             "=== GAME MANUAL & RULES ===\n"
             "1. OVERWORLD: The player character is ALWAYS perfectly centered on the screen. The world moves around you when you walk.\n"
             "2. TURNING: If you press a directional button that is DIFFERENT from the direction you are currently facing, your character will ONLY turn in place. It will NOT move forward. You must press the button again to actually step forward.\n"
-            "3. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge).\n"
+            "3. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge). Note that black straight line borders on the floor or walls are usually physical barriers/walls.\n"
             "4. CONTROLS:\n"
             "   - ↑, ↓, ←, →: Move your character or navigate menus.\n"
             "   - A: Interact with the object/NPC you are facing, confirm menu options, use attacks in battle. DO NOT mash or spam 'A' repeatedly.\n"
