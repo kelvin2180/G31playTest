@@ -74,6 +74,7 @@ def agent_thread():
     
     last_tick_time = 0
     previous_frame = None
+    previous_actions_taken = []
     
     while True:
         # Dynamic rate limiting: wait until enough time has passed since last tick
@@ -106,7 +107,7 @@ def agent_thread():
         
         vlm_prompt = "You are playing Pokémon. "
         if previous_frame is not None:
-            vlm_prompt += "The first image shows the game state BEFORE your last actions. The next 4 images show the CURRENT state.\n"
+            vlm_prompt += f"The first image shows the game state BEFORE your last actions ({previous_actions_taken}). The next 4 images show the CURRENT state.\n"
         else:
             vlm_prompt += "These 4 images show your CURRENT state.\n"
             
@@ -130,8 +131,9 @@ def agent_thread():
         llm_actions = state_data.get("actions", [])
         scratchpad = state_data.get("scratchpad_update", "")
         
-        # Save the current state as the "previous frame" for the NEXT tick
+        # Save the current state and actions for the NEXT tick
         previous_frame = frames[-1]
+        previous_actions_taken = llm_actions
         
         ui_queue.put({
             "state": state,
