@@ -103,11 +103,14 @@ def agent_thread():
         journal_text = memory.get_journal()
         scratchpad_text = memory.get_scratchpad()
         vlm_prompt = (
-            "Analyze these 4 sequential game frames (taken over the last 2 seconds). "
-            "What is the current game state?\n"
-            "What actions should we take next? Output a sequence of buttons to press.\n\n"
-            f"Context - Master Journal: {journal_text}\n"
-            f"Context - Scratchpad: {scratchpad_text}"
+            "Analyze these 4 sequential game frames (taken over the last 2 seconds).\n"
+            "You are playing Pokémon. What is the current game state?\n"
+            "What actions should you take next? Output a sequence of buttons to press.\n\n"
+            "=== YOUR MEMORY FROM PREVIOUS TURNS ===\n"
+            f"Master Journal (Long-term Goal): {journal_text}\n"
+            f"Scratchpad (Your note from the last 15 seconds): {scratchpad_text}\n"
+            "=======================================\n\n"
+            "Based on the new frames and your memory, update your Scratchpad with a short note about what you just discovered or tried, and output your next actions."
         )
         state_data, latency, tokens, raw_json = vision.analyze_frames(frames, prompt_text=vlm_prompt)
         state = state_data.get("state", "OVERWORLD")
