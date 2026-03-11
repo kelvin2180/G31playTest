@@ -1,10 +1,14 @@
 import mgba.core
 import mgba.image
+import mgba.log
 from mgba.core import lib
 import numpy as np
 import cv2
 import collections
 import os
+
+# Silence emulator warnings and debug logs
+mgba.log.silence()
 
 class EmulatorController:
     def __init__(self, rom_path):

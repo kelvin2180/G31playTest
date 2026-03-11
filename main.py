@@ -98,6 +98,17 @@ def agent_thread():
             "metrics": f"Latency: {latency:.2f}s | Tokens: {tokens}"
         })
         
+        # Log to terminal for debugging
+        print("\n" + "="*50)
+        print(f"[{time.strftime('%H:%M:%S')}] AGENT BRAIN TICK (15s)")
+        print(f"Metrics: {latency:.2f}s | Tokens: {tokens}")
+        print("-"*50)
+        print("--- PROMPT SENT ---")
+        print(vlm_prompt)
+        print("\n--- JSON RECEIVED ---")
+        print(raw_json)
+        print("="*50 + "\n")
+        
         # Convert LLM action strings to emulator commands
         key_mapping = {
             "A": "z", "B": "x", "START": "enter", "SELECT": "backspace",
