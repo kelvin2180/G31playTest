@@ -160,7 +160,7 @@ def agent_thread():
             "Based on the new frames and your history:\n"
             "1. Write a short Scratchpad note about what just happened.\n"
             "2. Decide your next actions.\n"
-            "3. If you have fundamentally achieved the current Master Journal goal (e.g. defeated the gym, reached a new city, received a key item), output a new 'journal_update' to set your next long-term objective. Otherwise, you can omit the journal update."
+            "3. If you have fundamentally achieved the current Master Journal goal, OR if you just spoke to an NPC/read a sign that gave you a new objective (e.g. 'Deliver this parcel to Oak'), output a new 'journal_update' to set your next long-term objective. Otherwise, you can omit the journal update."
         )
         
         state_data, latency, in_tokens, out_tokens, raw_json = vision.analyze_frames(
