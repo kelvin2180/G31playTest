@@ -81,8 +81,13 @@ def agent_thread():
     orchestrator = Orchestrator()
     
     last_tick_time = 0
-    previous_frame = None
-    previous_actions_taken = []
+    
+    # Historical memory buffers (last 10 turns)
+    import collections
+    history_frames = collections.deque(maxlen=10)   # Stores the final frame of each of the last 10 turns
+    history_actions = collections.deque(maxlen=10)  # Stores the actions taken in each of the last 10 turns
+    history_notes = collections.deque(maxlen=10)    # Stores the scratchpad notes from the last 10 turns
+    
     last_direction_faced = "UNKNOWN"
     
     while True:
@@ -112,7 +117,14 @@ def agent_thread():
             
         # 2. VLM Perception
         journal_text = memory.get_journal()
-        scratchpad_text = memory.get_scratchpad()
+        
+        # Build history text
+        history_text = ""
+        if len(history_actions) == 0:
+            history_text = "No history yet. This is your first turn."
+        else:
+            for i in range(len(history_actions)):
+                history_text += f"[Turn -{len(history_actions) - i}] Actions: {history_actions[i]} | Note: {history_notes[i]}\n"
         
         vlm_prompt = (
             "You are an AI agent playing Pokémon.\n\n"
@@ -129,10 +141,11 @@ def agent_thread():
             "===========================\n\n"
         )
         
-        if previous_frame is not None:
+        num_history = len(history_frames)
+        if num_history > 0:
             vlm_prompt += f"I am providing you with a filmstrip of images.\n"
-            vlm_prompt += f"The VERY FIRST image in the filmstrip is a snapshot taken right BEFORE you executed your last actions ({previous_actions_taken}).\n"
-            vlm_prompt += f"The REMAINING {len(frames)} images in the filmstrip show the CURRENT state resulting from those actions (captured every 0.5 seconds, spanning 4 seconds total).\n"
+            vlm_prompt += f"The FIRST {num_history} images are snapshots taken at the end of your LAST {num_history} turns (in chronological order).\n"
+            vlm_prompt += f"The REMAINING {len(frames)} images show the CURRENT state resulting from your most recent actions (captured every 0.5 seconds, spanning 4 seconds total).\n"
         else:
             vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
             
@@ -140,16 +153,16 @@ def agent_thread():
             f"\nBased on your previous actions, you should currently be facing: {last_direction_faced}.\n\n"
             "What is the current game state? If you took actions previously, did they work or are you blocked?\n"
             "What actions should you take next? Output a sequence of buttons to press.\n\n"
-            "=== YOUR MEMORY FROM PREVIOUS TURNS ===\n"
-            f"Master Journal (Long-term Goal): {journal_text}\n"
-            f"Scratchpad (Your note from the last turn): {scratchpad_text}\n"
+            "=== YOUR MEMORY FROM PAST TURNS ===\n"
+            f"Master Journal (Long-term Goal): {journal_text}\n\n"
+            f"Recent Turn History:\n{history_text}\n"
             "=======================================\n\n"
-            "Based on the new frames and your memory, update your Scratchpad with a short note about what you just discovered or tried, and output your next actions."
+            "Based on the new frames and your history, write a short scratchpad note about what happened and output your next actions."
         )
         
         state_data, latency, in_tokens, out_tokens, raw_json = vision.analyze_frames(
             frames, 
-            previous_frame=previous_frame, 
+            history_frames=list(history_frames), 
             prompt_text=vlm_prompt
         )
         
@@ -162,10 +175,10 @@ def agent_thread():
         llm_actions = state_data.get("actions", [])
         scratchpad = state_data.get("scratchpad_update", "")
         
-        # Save the current state and actions for the NEXT tick
-        previous_frame_copy = previous_frame.copy() if previous_frame is not None else None
-        previous_frame = frames[-1]
-        previous_actions_taken = llm_actions
+        # Add to history buffers
+        history_frames.append(frames[-1].copy())
+        history_actions.append(llm_actions)
+        history_notes.append(scratchpad)
         
         # Update last direction faced based on the LLM's chosen actions
         directions = ["↑", "↓", "←", "→"]
@@ -186,13 +199,12 @@ def agent_thread():
         filmstrip_pil = None
         try:
             filmstrip_images = []
-            if previous_frame_copy is not None:
-                filmstrip_images.append(previous_frame_copy)
+            filmstrip_images.extend(list(history_frames))
             filmstrip_images.extend(frames)
             
             # Resize them to a uniform height to stack them horizontally cleanly
             h, w = filmstrip_images[0].shape[:2]
-            scale = 80 / h  # Resize height to 80px (Width will be 120px per frame, up to 1080px total)
+            scale = 80 / h  # Resize height to 80px
             resized_images = [cv2.resize(img, (int(w * scale), 80)) for img in filmstrip_images]
             
             # Combine horizontally

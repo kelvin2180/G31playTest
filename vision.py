@@ -44,20 +44,21 @@ class VisionController:
         """Captures frame directly from the python mgba emulator instance."""
         return self.emulator.get_frame()
 
-    def analyze_frames(self, frames, previous_frame=None, prompt_text="Analyze these sequential game frames. What is the current game state?"):
+    def analyze_frames(self, frames, history_frames=None, prompt_text="Analyze these sequential game frames. What is the current game state?"):
         """Sends frames to Gemini and returns parsed JSON state + metrics."""
         if not frames:
-            return {"state": "OVERWORLD", "reasoning": "No frames"}, 0, 0, "{}"
+            return {"state": "OVERWORLD", "reasoning": "No frames"}, 0, 0, 0, "{}"
 
         contents = []
-        
-        # Inject the previous frame if it exists
-        if previous_frame is not None:
-            contents.append("IMAGE 1: State of the game BEFORE your last actions:")
-            rgb_prev = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2RGB)
-            _, buffer_prev = cv2.imencode('.jpg', rgb_prev)
-            contents.append(types.Part.from_bytes(data=buffer_prev.tobytes(), mime_type='image/jpeg'))
-            contents.append(f"IMAGES 2-{len(frames)+1}: Current sequential frames AFTER your actions:")
+
+        # Inject the historical frames if they exist
+        if history_frames and len(history_frames) > 0:
+            contents.append(f"IMAGES 1-{len(history_frames)}: Historical snapshots taken at the END of your last {len(history_frames)} turns:")
+            for prev_frame in history_frames:
+                rgb_prev = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2RGB)
+                _, buffer_prev = cv2.imencode('.jpg', rgb_prev)
+                contents.append(types.Part.from_bytes(data=buffer_prev.tobytes(), mime_type='image/jpeg'))
+            contents.append(f"IMAGES {len(history_frames)+1}-{len(history_frames)+len(frames)}: Current sequential frames AFTER your recent actions:")
         else:
             contents.append(f"IMAGES 1-{len(frames)}: Current sequential frames:")
 
