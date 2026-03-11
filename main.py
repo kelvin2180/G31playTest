@@ -83,6 +83,7 @@ def agent_thread():
     last_tick_time = 0
     previous_frame = None
     previous_actions_taken = []
+    last_direction_faced = "UNKNOWN"
     
     while True:
         # Dynamic rate limiting: wait until enough time has passed since last tick
@@ -135,7 +136,8 @@ def agent_thread():
             vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
             
         vlm_prompt += (
-            "\nWhat is the current game state? If you took actions previously, did they work or are you blocked?\n"
+            f"\nBased on your previous actions, you should currently be facing: {last_direction_faced}.\n\n"
+            "What is the current game state? If you took actions previously, did they work or are you blocked?\n"
             "What actions should you take next? Output a sequence of buttons to press.\n\n"
             "=== YOUR MEMORY FROM PREVIOUS TURNS ===\n"
             f"Master Journal (Long-term Goal): {journal_text}\n"
@@ -163,6 +165,13 @@ def agent_thread():
         previous_frame_copy = previous_frame.copy() if previous_frame is not None else None
         previous_frame = frames[-1]
         previous_actions_taken = llm_actions
+        
+        # Update last direction faced based on the LLM's chosen actions
+        directions = ["UP", "DOWN", "LEFT", "RIGHT"]
+        for action in reversed(llm_actions):
+            if action in directions:
+                last_direction_faced = action
+                break
         
         # Calculate cost based on gemini-3.1-flash-lite-preview pricing: 
         # $0.25 per 1M input tokens, $1.50 per 1M output tokens
