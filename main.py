@@ -158,6 +158,7 @@ def agent_thread():
         scratchpad = state_data.get("scratchpad_update", "")
         
         # Save the current state and actions for the NEXT tick
+        previous_frame_copy = previous_frame.copy() if previous_frame is not None else None
         previous_frame = frames[-1]
         previous_actions_taken = llm_actions
         
@@ -176,16 +177,38 @@ def agent_thread():
             "metrics": metrics_str
         })
         
-        # Log to terminal for debugging
+        # Log to terminal and filesystem for debugging
+        log_dir = os.path.expanduser("~/fire/logs")
+        os.makedirs(log_dir, exist_ok=True)
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        
+        # Save the prompt
+        with open(os.path.join(log_dir, f"{timestamp}_prompt.txt"), "w") as f:
+            f.write(vlm_prompt)
+            f.write("\n\n=== JSON RESPONSE ===\n")
+            f.write(raw_json)
+            
+        # Create a single "filmstrip" image showing what the model saw
+        try:
+            filmstrip_images = []
+            if previous_frame_copy is not None:
+                filmstrip_images.append(previous_frame_copy)
+            filmstrip_images.extend(frames)
+            
+            # Resize them to a uniform height to stack them horizontally cleanly
+            h, w = filmstrip_images[0].shape[:2]
+            scale = 120 / h  # Resize height to 120px for the filmstrip
+            resized_images = [cv2.resize(img, (int(w * scale), 120)) for img in filmstrip_images]
+            
+            # Combine horizontally
+            filmstrip = np.hstack(resized_images)
+            cv2.imwrite(os.path.join(log_dir, f"{timestamp}_vision.jpg"), filmstrip)
+        except Exception as e:
+            print(f"Failed to save vision filmstrip: {e}")
+
         print("\n" + "="*50)
         print(f"[{time.strftime('%H:%M:%S')}] AGENT BRAIN TICK ({agent_tick_frequency}s)")
-        print(f"Metrics: {metrics_str}")
-        print("-"*50)
-        print("--- PROMPT SENT ---")
-        print(vlm_prompt)
-        print("\n--- JSON RECEIVED ---")
-        print(raw_json)
-        print("="*50 + "\n")
+        print(f"Saved Prompt & Vision Filmstrip to ~/fire/logs/{timestamp}_...")
         
         # Convert LLM action strings to emulator commands
         key_mapping = {

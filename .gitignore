@@ -26,3 +26,4 @@ venv.bak/
 # Logs and databases
 *.log
 master_journal.txt
+logs/
