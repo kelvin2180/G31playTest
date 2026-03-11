@@ -121,7 +121,7 @@ def agent_thread():
             "2. TURNING: If you press a directional button that is DIFFERENT from the direction you are currently facing, your character will ONLY turn in place. It will NOT move forward. You must press the button again to actually step forward.\n"
             "3. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge).\n"
             "4. CONTROLS:\n"
-            "   - UP, DOWN, LEFT, RIGHT: Move your character or navigate menus.\n"
+            "   - ↑, ↓, ←, →: Move your character or navigate menus.\n"
             "   - A: Interact with the object/NPC you are facing, confirm menu options, use attacks in battle. DO NOT mash or spam 'A' repeatedly.\n"
             "   - B: Cancel menus, back out, fast-forward dialogue, or run (if running shoes are unlocked).\n"
             "   - START: Open the main pause menu (Pokedex, Pokemon, Bag, Save).\n"
@@ -168,7 +168,7 @@ def agent_thread():
         previous_actions_taken = llm_actions
         
         # Update last direction faced based on the LLM's chosen actions
-        directions = ["UP", "DOWN", "LEFT", "RIGHT"]
+        directions = ["↑", "↓", "←", "→"]
         for action in reversed(llm_actions):
             if action in directions:
                 last_direction_faced = action
@@ -228,7 +228,7 @@ def agent_thread():
         # Convert LLM action strings to emulator commands
         key_mapping = {
             "A": "z", "B": "x", "START": "enter", "SELECT": "backspace",
-            "UP": "up", "DOWN": "down", "LEFT": "left", "RIGHT": "right"
+            "↑": "up", "↓": "down", "←": "left", "→": "right"
         }
         
         actions = []
