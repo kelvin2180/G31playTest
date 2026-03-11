@@ -57,9 +57,9 @@ class VisionController:
             rgb_prev = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2RGB)
             _, buffer_prev = cv2.imencode('.jpg', rgb_prev)
             contents.append(types.Part.from_bytes(data=buffer_prev.tobytes(), mime_type='image/jpeg'))
-            contents.append("IMAGES 2-5: Current sequential frames AFTER your actions:")
+            contents.append(f"IMAGES 2-{len(frames)+1}: Current sequential frames AFTER your actions:")
         else:
-            contents.append("IMAGES 1-4: Current sequential frames:")
+            contents.append(f"IMAGES 1-{len(frames)}: Current sequential frames:")
 
         # Encode current frames as JPEG to send to Gemini
         for frame in frames:

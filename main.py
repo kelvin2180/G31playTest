@@ -45,8 +45,8 @@ def emulator_thread():
         global_emulator.run_frame(use_human_input=agent_paused)
         frame_count += 1
         
-        # Save a frame to the AI buffer every ~0.5 seconds (30 frames)
-        if frame_count % 30 == 0:
+        # Save a frame to the AI buffer every ~0.25 seconds (15 frames)
+        if frame_count % 15 == 0:
             global_emulator.add_to_buffer()
             
         # Push frame to UI (~30 FPS to save CPU)
@@ -112,14 +112,28 @@ def agent_thread():
         journal_text = memory.get_journal()
         scratchpad_text = memory.get_scratchpad()
         
-        vlm_prompt = "You are playing Pokémon. "
+        vlm_prompt = (
+            "You are an AI agent playing Pokémon.\n\n"
+            "=== GAME MANUAL & RULES ===\n"
+            "1. OVERWORLD: The player character is ALWAYS perfectly centered on the screen. The world moves around you when you walk.\n"
+            "2. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge).\n"
+            "3. CONTROLS:\n"
+            "   - UP, DOWN, LEFT, RIGHT: Move your character or navigate menus.\n"
+            "   - A: Interact with the object/NPC you are facing, confirm menu options, use attacks in battle.\n"
+            "   - B: Cancel menus, back out, fast-forward dialogue, or run (if running shoes are unlocked).\n"
+            "   - START: Open the main pause menu (Pokedex, Pokemon, Bag, Save).\n"
+            "   - SELECT: Use registered items (like Bicycle or Rod).\n"
+            "===========================\n\n"
+        )
+        
         if previous_frame is not None:
-            vlm_prompt += f"The first image shows the game state BEFORE your last actions ({previous_actions_taken}). The next 4 images show the CURRENT state.\n"
+            vlm_prompt += f"The FIRST image shows the game state BEFORE your last actions ({previous_actions_taken}).\n"
+            vlm_prompt += f"The REMAINING {len(frames)} images show the CURRENT state (captured every 0.25 seconds).\n"
         else:
-            vlm_prompt += "These 4 images show your CURRENT state.\n"
+            vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.25 seconds).\n"
             
         vlm_prompt += (
-            "What is the current game state? If you took actions previously, did they work or are you blocked?\n"
+            "\nWhat is the current game state? If you took actions previously, did they work or are you blocked?\n"
             "What actions should you take next? Output a sequence of buttons to press.\n\n"
             "=== YOUR MEMORY FROM PREVIOUS TURNS ===\n"
             f"Master Journal (Long-term Goal): {journal_text}\n"

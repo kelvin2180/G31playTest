@@ -46,7 +46,7 @@ class EmulatorController:
         self.action_queue = []
         self.action_delay = 0
         self.post_action_delay = 0 
-        self.rolling_frames = collections.deque(maxlen=4)
+        self.rolling_frames = collections.deque(maxlen=8)
 
     def human_press(self, keysym):
         val = self.tk_key_map.get(keysym)
