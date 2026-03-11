@@ -130,8 +130,9 @@ def agent_thread():
         )
         
         if previous_frame is not None:
-            vlm_prompt += f"The FIRST image shows the game state BEFORE your last actions ({previous_actions_taken}).\n"
-            vlm_prompt += f"The REMAINING {len(frames)} images show the CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
+            vlm_prompt += f"I am providing you with a filmstrip of images.\n"
+            vlm_prompt += f"The VERY FIRST image in the filmstrip is a snapshot taken right BEFORE you executed your last actions ({previous_actions_taken}).\n"
+            vlm_prompt += f"The REMAINING {len(frames)} images in the filmstrip show the CURRENT state resulting from those actions (captured every 0.5 seconds, spanning 4 seconds total).\n"
         else:
             vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
             
