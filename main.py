@@ -49,22 +49,33 @@ def emulator_thread():
             time.sleep(sleep_time)
 
 
+# Global variable for tick frequency (in seconds)
+agent_tick_frequency = 15
+
 def agent_thread():
-    """15-Second VLM Brain Loop"""
-    global global_emulator, agent_paused
+    """Dynamic VLM Brain Loop"""
+    global global_emulator, agent_paused, agent_tick_frequency
     vision = None
     memory = Memory()
     orchestrator = Orchestrator()
     
+    last_tick_time = 0
+    
     while True:
-        # Rate limit: 15 seconds. (We do it in 1s chunks so we don't freeze on shutdown)
-        for _ in range(15):
-            time.sleep(1)
-            # If we unpause mid-sleep, we keep waiting. 
+        # Dynamic rate limiting: wait until enough time has passed since last tick
+        current_time = time.time()
+        time_since_last = current_time - last_tick_time
         
-        if agent_paused or global_emulator is None:
+        if time_since_last < agent_tick_frequency:
+            time.sleep(0.5) # Sleep briefly and check again
             continue
             
+        if agent_paused or global_emulator is None:
+            time.sleep(0.5)
+            continue
+            
+        last_tick_time = time.time()
+        
         if vision is None:
             vision = VisionController(global_emulator)
             
@@ -164,6 +175,20 @@ class AgentApp(ctk.CTk):
         self.pause_btn = ctk.CTkButton(self.vision_frame, text="Agent Paused (Manual Control)", fg_color="red", hover_color="darkred", command=self.toggle_pause)
         self.pause_btn.pack(pady=5)
         
+        # Agent Tick Frequency Control
+        self.freq_frame = ctk.CTkFrame(self.vision_frame, fg_color="transparent")
+        self.freq_frame.pack(pady=5)
+        
+        ctk.CTkLabel(self.freq_frame, text="Agent Tick Rate:").pack(side="left", padx=(0, 5))
+        self.freq_var = ctk.StringVar(value="15s (Safe 24/7)")
+        self.freq_menu = ctk.CTkOptionMenu(
+            self.freq_frame, 
+            values=["5s (Fast Play)", "10s (Moderate)", "15s (Safe 24/7)", "30s (Slow)"],
+            variable=self.freq_var,
+            command=self.update_tick_frequency
+        )
+        self.freq_menu.pack(side="left")
+        
         # Save/Load State Buttons
         self.save_load_frame = ctk.CTkFrame(self.vision_frame, fg_color="transparent")
         self.save_load_frame.pack(pady=5)
@@ -217,6 +242,18 @@ class AgentApp(ctk.CTk):
         threading.Thread(target=agent_thread, daemon=True).start()
         
         self.update_ui()
+
+    def update_tick_frequency(self, choice):
+        global agent_tick_frequency
+        if "5s" in choice:
+            agent_tick_frequency = 5
+        elif "10s" in choice:
+            agent_tick_frequency = 10
+        elif "15s" in choice:
+            agent_tick_frequency = 15
+        elif "30s" in choice:
+            agent_tick_frequency = 30
+        ui_queue.put({"action_status": f"Tick rate updated to {agent_tick_frequency}s."})
 
     def toggle_pause(self):
         global agent_paused
