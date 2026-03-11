@@ -79,9 +79,18 @@ class EmulatorController:
         elif self.action_queue:
             action = self.action_queue.pop(0)
             cmd = action[0]
+            if action[1] == "NONE":
+                self.agent_keys_state = 0
+                self.action_delay = 5
+                return
+
             key_val = self.key_map.get(action[1].lower())
             
             if key_val is not None:
+                # IMPORTANT: mgba-python's set_keys() expects the key index, 
+                # but run_frame(raw=...) expects a bitmask.
+                # Since we are using raw=self.agent_keys_state in run_frame, 
+                # we MUST shift here.
                 self.agent_keys_state = (1 << key_val)
                 if cmd == 'tap':
                     self.action_delay = 5 # hold down for 5 frames

@@ -20,7 +20,7 @@ def tap(key_str, delay=0.01):
     keyboard.press(key)
     time.sleep(delay)
     keyboard.release(key)
-    time.sleep(0.05)
+    time.sleep(0.1)
 
 def hold(key_str, duration=1.0):
     key = KEY_MAP.get(key_str.lower(), key_str)

@@ -251,16 +251,13 @@ def agent_thread():
         }
         
         actions = []
-        if state == "DIALOGUE":
-            # Fast-path for dialogue to avoid slow reading
-            actions = [('tap', 'x'), ('tap', 'z'), ('tap', 'x'), ('tap', 'z')]
-            scratchpad = "Mashing through dialogue."
-        else:
-            for a in llm_actions:
-                if a != "NONE":
-                    actions.append(('tap', key_mapping.get(a, a.lower())))
-            if not actions:
-                actions = [('tap', 'x')] # safe fallback
+        # Respect the model's chosen actions exclusively
+        for a in llm_actions:
+            if a != "NONE":
+                actions.append(('tap', key_mapping.get(a, a.lower())))
+        
+        if not actions:
+            actions = [('tap', 'NONE')] # Do nothing if no actions provided
         
         memory.update_scratchpad(scratchpad)
         
