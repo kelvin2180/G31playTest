@@ -131,6 +131,14 @@ class AgentApp(ctk.CTk):
         self.pause_btn = ctk.CTkButton(self.vision_frame, text="Agent Paused (Manual Control)", fg_color="red", hover_color="darkred", command=self.toggle_pause)
         self.pause_btn.pack(pady=5)
         
+        # Save/Load State Buttons
+        self.save_load_frame = ctk.CTkFrame(self.vision_frame, fg_color="transparent")
+        self.save_load_frame.pack(pady=5)
+        self.save_btn = ctk.CTkButton(self.save_load_frame, text="Save State", command=self.save_state_ui, width=120)
+        self.save_btn.pack(side="left", padx=5)
+        self.load_btn = ctk.CTkButton(self.save_load_frame, text="Load State", command=self.load_state_ui, width=120)
+        self.load_btn.pack(side="left", padx=5)
+        
         self.vision_label = ctk.CTkLabel(self.vision_frame, text="Select a ROM to start...")
         self.vision_label.pack(expand=True, fill="both")
         
@@ -197,6 +205,22 @@ class AgentApp(ctk.CTk):
             global_emulator = EmulatorController(rom_path)
             # Note: We don't wake up the agent thread here. 
             # It wakes up automatically, and you control it via the Pause button.
+
+    def save_state_ui(self):
+        global global_emulator
+        if global_emulator:
+            save_path = filedialog.asksaveasfilename(defaultextension=".ss", filetypes=[("Save States", "*.ss")])
+            if save_path:
+                global_emulator.save_state(save_path)
+                ui_queue.put({"action_status": f"State saved to {os.path.basename(save_path)}"})
+
+    def load_state_ui(self):
+        global global_emulator
+        if global_emulator:
+            load_path = filedialog.askopenfilename(filetypes=[("Save States", "*.ss"), ("All Files", "*.*")])
+            if load_path:
+                global_emulator.load_state(load_path)
+                ui_queue.put({"action_status": f"State loaded from {os.path.basename(load_path)}"})
 
     def update_ui(self):
         try:

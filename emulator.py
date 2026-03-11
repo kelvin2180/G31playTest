@@ -4,9 +4,11 @@ from mgba.core import lib
 import numpy as np
 import cv2
 import collections
+import os
 
 class EmulatorController:
     def __init__(self, rom_path):
+        self.rom_path = rom_path
         self.core = mgba.core.load_path(rom_path)
         if not self.core:
             raise ValueError(f"Could not load ROM: {rom_path}")
@@ -102,3 +104,17 @@ class EmulatorController:
         
     def get_recent_frames(self):
         return list(self.rolling_frames)
+        
+    def save_state(self, filepath):
+        """Saves an emulator state snapshot."""
+        state_data = self.core.save_raw_state()
+        if state_data:
+            with open(filepath, 'wb') as f:
+                f.write(state_data)
+                
+    def load_state(self, filepath):
+        """Loads an emulator state snapshot."""
+        if os.path.exists(filepath):
+            with open(filepath, 'rb') as f:
+                state_data = f.read()
+            self.core.load_raw_state(state_data)
