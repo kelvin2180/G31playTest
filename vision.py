@@ -26,7 +26,7 @@ class VisionController:
                 },
                 "actions": {
                     "type": "ARRAY",
-                    "description": "List of button taps to execute in sequence.",
+                    "description": "List of button taps to execute in sequence. DO NOT spam or mash 'A' multiple times in a row. Use a single 'A' or 'B' to advance text or interact.",
                     "items": {
                         "type": "STRING",
                         "enum": ["UP", "DOWN", "LEFT", "RIGHT", "A", "B", "START", "SELECT", "NONE"]

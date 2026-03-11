@@ -119,7 +119,7 @@ def agent_thread():
             "2. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge).\n"
             "3. CONTROLS:\n"
             "   - UP, DOWN, LEFT, RIGHT: Move your character or navigate menus.\n"
-            "   - A: Interact with the object/NPC you are facing, confirm menu options, use attacks in battle.\n"
+            "   - A: Interact with the object/NPC you are facing, confirm menu options, use attacks in battle. DO NOT mash or spam 'A' repeatedly.\n"
             "   - B: Cancel menus, back out, fast-forward dialogue, or run (if running shoes are unlocked).\n"
             "   - START: Open the main pause menu (Pokedex, Pokemon, Bag, Save).\n"
             "   - SELECT: Use registered items (like Bicycle or Rod).\n"
