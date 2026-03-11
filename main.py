@@ -45,8 +45,8 @@ def emulator_thread():
         global_emulator.run_frame(use_human_input=agent_paused)
         frame_count += 1
         
-        # Save a frame to the AI buffer every ~0.25 seconds (15 frames)
-        if frame_count % 15 == 0:
+        # Save a frame to the AI buffer every ~0.5 seconds (30 frames)
+        if frame_count % 30 == 0:
             global_emulator.add_to_buffer()
             
         # Push frame to UI (~30 FPS to save CPU)
@@ -128,9 +128,9 @@ def agent_thread():
         
         if previous_frame is not None:
             vlm_prompt += f"The FIRST image shows the game state BEFORE your last actions ({previous_actions_taken}).\n"
-            vlm_prompt += f"The REMAINING {len(frames)} images show the CURRENT state (captured every 0.25 seconds).\n"
+            vlm_prompt += f"The REMAINING {len(frames)} images show the CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
         else:
-            vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.25 seconds).\n"
+            vlm_prompt += f"These {len(frames)} images show your CURRENT state (captured every 0.5 seconds, spanning 4 seconds total).\n"
             
         vlm_prompt += (
             "\nWhat is the current game state? If you took actions previously, did they work or are you blocked?\n"
