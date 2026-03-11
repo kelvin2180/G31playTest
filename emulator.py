@@ -82,7 +82,8 @@ class EmulatorController:
                 if cmd == 'tap':
                     self.action_delay = 5 # hold down for 5 frames
                 elif cmd == 'hold':
-                    self.action_delay = int(action[2] * 60) # duration * 60 FPS
+                    # HOLD is temporarily disabled, converting to tap
+                    self.action_delay = 5
 
     def run_frame(self, use_human_input=False):
         """Steps the emulator forward by exactly 1/60th of a second"""
