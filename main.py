@@ -80,13 +80,16 @@ def agent_thread():
         scratchpad_text = memory.get_scratchpad()
         vlm_prompt = (
             "Analyze these 4 sequential game frames (taken over the last 2 seconds). "
-            "What is the current game state?\n\n"
+            "What is the current game state?\n"
+            "What actions should we take next? Output a sequence of buttons to press.\n\n"
             f"Context - Master Journal: {journal_text}\n"
             f"Context - Scratchpad: {scratchpad_text}"
         )
         state_data, latency, tokens, raw_json = vision.analyze_frames(frames, prompt_text=vlm_prompt)
         state = state_data.get("state", "OVERWORLD")
         reasoning = state_data.get("reasoning", "")
+        llm_actions = state_data.get("actions", [])
+        scratchpad = state_data.get("scratchpad_update", "")
         
         ui_queue.put({
             "state": state,
@@ -95,18 +98,28 @@ def agent_thread():
             "metrics": f"Latency: {latency:.2f}s | Tokens: {tokens}"
         })
         
-        # 3. Quick Route Dialogue
+        # Convert LLM action strings to emulator commands
+        key_mapping = {
+            "A": "z", "B": "x", "START": "enter", "SELECT": "backspace",
+            "UP": "up", "DOWN": "down", "LEFT": "left", "RIGHT": "right"
+        }
+        
+        actions = []
         if state == "DIALOGUE":
+            # Fast-path for dialogue to avoid slow reading
             actions = [('tap', 'x'), ('tap', 'z'), ('tap', 'x'), ('tap', 'z')]
             scratchpad = "Mashing through dialogue."
         else:
-            worker = orchestrator.get_worker(state)
-            actions, scratchpad = worker.act(frames, memory.get_journal(), memory.get_scratchpad())
+            for a in llm_actions:
+                if a != "NONE":
+                    actions.append(('tap', key_mapping.get(a, a.lower())))
+            if not actions:
+                actions = [('tap', 'x')] # safe fallback
         
         memory.update_scratchpad(scratchpad)
         
         ui_queue.put({
-            "action_status": f"Agent Decided: {actions}\nReasoning: {reasoning}",
+            "action_status": f"Agent Decided: {llm_actions}\nReasoning: {reasoning}",
             "scratchpad": scratchpad,
             "journal": memory.get_journal()
         })

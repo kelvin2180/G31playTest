@@ -22,10 +22,22 @@ class VisionController:
                 },
                 "reasoning": {
                     "type": "STRING",
-                    "description": "Brief reason for this classification."
+                    "description": "Brief reason for this classification and planned actions."
+                },
+                "actions": {
+                    "type": "ARRAY",
+                    "description": "List of button taps to execute in sequence.",
+                    "items": {
+                        "type": "STRING",
+                        "enum": ["UP", "DOWN", "LEFT", "RIGHT", "A", "B", "START", "SELECT", "NONE"]
+                    }
+                },
+                "scratchpad_update": {
+                    "type": "STRING",
+                    "description": "Short note for your future self about what you just did or discovered."
                 }
             },
-            "required": ["state", "reasoning"]
+            "required": ["state", "reasoning", "actions", "scratchpad_update"]
         }
 
     def capture_frame(self):
