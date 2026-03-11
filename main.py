@@ -129,7 +129,8 @@ def agent_thread():
         vlm_prompt = (
             "You are an AI agent playing Pokémon.\n\n"
             "=== GAME MANUAL & RULES ===\n"
-            "1. OVERWORLD: The player character is ALWAYS perfectly centered on the screen. The world moves around you when you walk.\n"
+            "1. STATE CLASSIFICATION: Only classify the state as 'DIALOGUE' if the VERY LAST image in the sequence (the most recent one) shows an active dialogue box. If a dialogue box appears in early frames but is gone by the final frame, classify based on the final frame (usually 'OVERWORLD').\n"
+            "2. OVERWORLD: The player character is ALWAYS perfectly centered on the screen. The world moves around you when you walk.\n"
             "2. TURNING: If you press a directional button that is DIFFERENT from the direction you are currently facing, your character will ONLY turn in place. It will NOT move forward. You must press the button again to actually step forward.\n"
             "3. COLLISIONS: If you press a directional button but the background does not change in the subsequent frames, you bumped into an obstacle (wall, tree, NPC, ledge). Note that black straight line borders on the floor or walls are usually physical barriers/walls.\n"
             "4. CONTROLS:\n"

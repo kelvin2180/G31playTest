@@ -18,7 +18,8 @@ class VisionController:
             "properties": {
                 "state": {
                     "type": "STRING",
-                    "enum": ["OVERWORLD", "BATTLE", "MENU", "DIALOGUE"]
+                    "enum": ["OVERWORLD", "BATTLE", "MENU", "DIALOGUE"],
+                    "description": "The current game state. CRITICAL: Only set to 'DIALOGUE' if the VERY LAST image in the sequence (the most recent one) shows an active dialogue box. If dialogue ended during the sequence, use the state shown in the final frame (e.g. OVERWORLD)."
                 },
                 "reasoning": {
                     "type": "STRING",
