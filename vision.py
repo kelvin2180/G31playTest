@@ -11,7 +11,7 @@ class VisionController:
         self.emulator = emulator
         # Initialize Gemini client - assumes GEMINI_API_KEY is in environment
         self.client = genai.Client()
-        self.model_name = 'gemini-2.0-flash-lite-preview-02-05'
+        self.model_name = 'gemini-3.1-flash-lite-preview'
         
         self.state_schema = {
             "type": "OBJECT",
