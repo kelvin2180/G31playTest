@@ -32,7 +32,7 @@ class VisionController:
         """Captures frame directly from the python mgba emulator instance."""
         return self.emulator.get_frame()
 
-    def analyze_frames(self, frames):
+    def analyze_frames(self, frames, prompt_text="Analyze these sequential game frames. What is the current game state?"):
         """Sends frames to Gemini and returns parsed JSON state + metrics."""
         if not frames:
             return {"state": "OVERWORLD", "reasoning": "No frames"}, 0, 0, "{}"
@@ -52,8 +52,7 @@ class VisionController:
 
         start_time = time.time()
         try:
-            prompt = "Analyze these sequential game frames. What is the current game state?"
-            contents = pil_images + [prompt]
+            contents = pil_images + [prompt_text]
             
             response = self.client.models.generate_content(
                 model=self.model_name,

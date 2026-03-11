@@ -76,13 +76,22 @@ def agent_thread():
             continue
             
         # 2. VLM Perception
-        state_data, latency, tokens, raw_json = vision.analyze_frames(frames)
+        journal_text = memory.get_journal()
+        scratchpad_text = memory.get_scratchpad()
+        vlm_prompt = (
+            "Analyze these 4 sequential game frames (taken over the last 2 seconds). "
+            "What is the current game state?\n\n"
+            f"Context - Master Journal: {journal_text}\n"
+            f"Context - Scratchpad: {scratchpad_text}"
+        )
+        state_data, latency, tokens, raw_json = vision.analyze_frames(frames, prompt_text=vlm_prompt)
         state = state_data.get("state", "OVERWORLD")
         reasoning = state_data.get("reasoning", "")
         
         ui_queue.put({
             "state": state,
             "json": raw_json,
+            "prompt": vlm_prompt,
             "metrics": f"Latency: {latency:.2f}s | Tokens: {tokens}"
         })
         
@@ -165,9 +174,9 @@ class AgentApp(ctk.CTk):
         self.llm_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
         self.metrics_label = ctk.CTkLabel(self.llm_frame, text="Latency: 0s | Tokens: 0", font=("Arial", 12, "bold"))
         self.metrics_label.pack(pady=5)
-        ctk.CTkLabel(self.llm_frame, text="LLM JSON Trace").pack()
-        self.json_text = ctk.CTkTextbox(self.llm_frame)
-        self.json_text.pack(fill="both", expand=True, padx=5, pady=5)
+        ctk.CTkLabel(self.llm_frame, text="LLM Trace (Prompt & Response)").pack()
+        self.trace_text = ctk.CTkTextbox(self.llm_frame, wrap="word")
+        self.trace_text.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Bind keyboard events for manual control
         self.bind("<KeyPress>", self.on_key_press)
@@ -246,8 +255,10 @@ class AgentApp(ctk.CTk):
                     self.scratchpad_text.insert("0.0", data["scratchpad"])
                     
                 if "json" in data:
-                    self.json_text.delete("0.0", "end")
-                    self.json_text.insert("0.0", data["json"])
+                    self.trace_text.delete("0.0", "end")
+                    prompt_str = data.get("prompt", "No prompt provided.")
+                    trace_content = f"=== SENT PROMPT ===\n{prompt_str}\n\n=== RECEIVED JSON ===\n{data['json']}"
+                    self.trace_text.insert("0.0", trace_content)
                 if "metrics" in data:
                     self.metrics_label.configure(text=data["metrics"])
                     
