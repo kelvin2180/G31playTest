@@ -178,10 +178,16 @@ class AgentApp(ctk.CTk):
         # UI Elements - Bottom Left (Agent State)
         self.state_frame = ctk.CTkFrame(self)
         self.state_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.state_frame.grid_propagate(False) # Stop child widgets from resizing this frame
+        
         self.state_label = ctk.CTkLabel(self.state_frame, text="State: UNKNOWN", font=("Arial", 24, "bold"))
-        self.state_label.pack(pady=10)
-        self.action_label = ctk.CTkLabel(self.state_frame, text="Action: None", font=("Arial", 14))
-        self.action_label.pack(pady=10)
+        self.state_label.pack(pady=(10, 0))
+        
+        # Make the action label a text box so it can scroll and wrap without breaking the UI layout
+        self.action_label = ctk.CTkTextbox(self.state_frame, font=("Arial", 14), wrap="word", height=80, fg_color="transparent")
+        self.action_label.pack(pady=10, padx=10, fill="both", expand=True)
+        self.action_label.insert("0.0", "Action: None")
+        self.action_label.configure(state="disabled")
         
         # UI Elements - Top Right (Memory)
         self.mem_frame = ctk.CTkFrame(self)
@@ -269,7 +275,10 @@ class AgentApp(ctk.CTk):
                 if "state" in data:
                     self.state_label.configure(text=f"State: {data['state']}")
                 if "action_status" in data:
-                    self.action_label.configure(text=f"{data['action_status']}")
+                    self.action_label.configure(state="normal")
+                    self.action_label.delete("0.0", "end")
+                    self.action_label.insert("0.0", f"{data['action_status']}")
+                    self.action_label.configure(state="disabled")
                     
                 if "journal" in data:
                     self.journal_text.delete("0.0", "end")
