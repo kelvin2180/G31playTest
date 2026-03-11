@@ -15,7 +15,7 @@ KEY_MAP = {
     'right': Key.right
 }
 
-def tap(key_str, delay=0.1):
+def tap(key_str, delay=0.01):
     key = KEY_MAP.get(key_str.lower(), key_str)
     keyboard.press(key)
     time.sleep(delay)

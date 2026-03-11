@@ -35,6 +35,10 @@ class VisionController:
                 "scratchpad_update": {
                     "type": "STRING",
                     "description": "Short note for your future self about what you just did or discovered."
+                },
+                "journal_update": {
+                    "type": "STRING",
+                    "description": "Optional. Write a new overarching goal here ONLY if you completed your previous long-term goal. Otherwise, leave blank or echo the current goal."
                 }
             },
             "required": ["state", "reasoning", "actions", "scratchpad_update"]

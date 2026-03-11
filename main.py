@@ -157,7 +157,10 @@ def agent_thread():
             f"Master Journal (Long-term Goal): {journal_text}\n\n"
             f"Recent Turn History:\n{history_text}\n"
             "=======================================\n\n"
-            "Based on the new frames and your history, write a short scratchpad note about what happened and output your next actions."
+            "Based on the new frames and your history:\n"
+            "1. Write a short Scratchpad note about what just happened.\n"
+            "2. Decide your next actions.\n"
+            "3. If you have fundamentally achieved the current Master Journal goal (e.g. defeated the gym, reached a new city, received a key item), output a new 'journal_update' to set your next long-term objective. Otherwise, you can omit the journal update."
         )
         
         state_data, latency, in_tokens, out_tokens, raw_json = vision.analyze_frames(
@@ -174,11 +177,15 @@ def agent_thread():
         reasoning = state_data.get("reasoning", "")
         llm_actions = state_data.get("actions", [])
         scratchpad = state_data.get("scratchpad_update", "")
+        new_journal = state_data.get("journal_update", "")
         
         # Add to history buffers
         history_frames.append(frames[-1].copy())
         history_actions.append(llm_actions)
         history_notes.append(scratchpad)
+        
+        if new_journal and new_journal.strip():
+            memory.update_journal(new_journal)
         
         # Update last direction faced based on the LLM's chosen actions
         directions = ["↑", "↓", "←", "→"]
