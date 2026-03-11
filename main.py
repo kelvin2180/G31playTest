@@ -65,9 +65,16 @@ def emulator_thread():
 # Global variable for tick frequency (in seconds)
 agent_tick_frequency = 15
 
+# Global Metrics
+total_model_calls = 0
+total_in_tokens = 0
+total_out_tokens = 0
+
 def agent_thread():
     """Dynamic VLM Brain Loop"""
     global global_emulator, agent_paused, agent_tick_frequency
+    global total_model_calls, total_in_tokens, total_out_tokens
+    
     vision = None
     memory = Memory()
     orchestrator = Orchestrator()
@@ -121,11 +128,16 @@ def agent_thread():
             "Based on the new frames and your memory, update your Scratchpad with a short note about what you just discovered or tried, and output your next actions."
         )
         
-        state_data, latency, tokens, raw_json = vision.analyze_frames(
+        state_data, latency, in_tokens, out_tokens, raw_json = vision.analyze_frames(
             frames, 
             previous_frame=previous_frame, 
             prompt_text=vlm_prompt
         )
+        
+        total_model_calls += 1
+        total_in_tokens += in_tokens
+        total_out_tokens += out_tokens
+        
         state = state_data.get("state", "OVERWORLD")
         reasoning = state_data.get("reasoning", "")
         llm_actions = state_data.get("actions", [])
@@ -135,17 +147,19 @@ def agent_thread():
         previous_frame = frames[-1]
         previous_actions_taken = llm_actions
         
+        metrics_str = f"Calls: {total_model_calls} | In: {total_in_tokens} | Out: {total_out_tokens} | Latency: {latency:.2f}s"
+        
         ui_queue.put({
             "state": state,
             "json": raw_json,
             "prompt": vlm_prompt,
-            "metrics": f"Latency: {latency:.2f}s | Tokens: {tokens}"
+            "metrics": metrics_str
         })
         
         # Log to terminal for debugging
         print("\n" + "="*50)
-        print(f"[{time.strftime('%H:%M:%S')}] AGENT BRAIN TICK (15s)")
-        print(f"Metrics: {latency:.2f}s | Tokens: {tokens}")
+        print(f"[{time.strftime('%H:%M:%S')}] AGENT BRAIN TICK ({agent_tick_frequency}s)")
+        print(f"Metrics: {metrics_str}")
         print("-"*50)
         print("--- PROMPT SENT ---")
         print(vlm_prompt)

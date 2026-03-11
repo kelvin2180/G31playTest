@@ -83,12 +83,13 @@ class VisionController:
             )
             
             latency = time.time() - start_time
-            tokens = response.usage_metadata.total_token_count if response.usage_metadata else 0
+            in_tokens = response.usage_metadata.prompt_token_count if response.usage_metadata else 0
+            out_tokens = response.usage_metadata.candidates_token_count if response.usage_metadata else 0
             raw_json = response.text
             state_data = json.loads(raw_json)
             
-            return state_data, latency, tokens, raw_json
+            return state_data, latency, in_tokens, out_tokens, raw_json
 
         except Exception as e:
             print(f"Vision error: {e}")
-            return {"state": "OVERWORLD", "reasoning": f"Error: {str(e)}"}, time.time() - start_time, 0, "{}"
+            return {"state": "OVERWORLD", "reasoning": f"Error: {str(e)}"}, time.time() - start_time, 0, 0, "{}"
