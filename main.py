@@ -73,6 +73,7 @@ def agent_thread():
     orchestrator = Orchestrator()
     
     last_tick_time = 0
+    previous_frame = None
     
     while True:
         # Dynamic rate limiting: wait until enough time has passed since last tick
@@ -102,21 +103,35 @@ def agent_thread():
         # 2. VLM Perception
         journal_text = memory.get_journal()
         scratchpad_text = memory.get_scratchpad()
-        vlm_prompt = (
-            "Analyze these 4 sequential game frames (taken over the last 2 seconds).\n"
-            "You are playing Pokémon. What is the current game state?\n"
+        
+        vlm_prompt = "You are playing Pokémon. "
+        if previous_frame is not None:
+            vlm_prompt += "The first image shows the game state BEFORE your last actions. The next 4 images show the CURRENT state.\n"
+        else:
+            vlm_prompt += "These 4 images show your CURRENT state.\n"
+            
+        vlm_prompt += (
+            "What is the current game state? If you took actions previously, did they work or are you blocked?\n"
             "What actions should you take next? Output a sequence of buttons to press.\n\n"
             "=== YOUR MEMORY FROM PREVIOUS TURNS ===\n"
             f"Master Journal (Long-term Goal): {journal_text}\n"
-            f"Scratchpad (Your note from the last 15 seconds): {scratchpad_text}\n"
+            f"Scratchpad (Your note from the last turn): {scratchpad_text}\n"
             "=======================================\n\n"
             "Based on the new frames and your memory, update your Scratchpad with a short note about what you just discovered or tried, and output your next actions."
         )
-        state_data, latency, tokens, raw_json = vision.analyze_frames(frames, prompt_text=vlm_prompt)
+        
+        state_data, latency, tokens, raw_json = vision.analyze_frames(
+            frames, 
+            previous_frame=previous_frame, 
+            prompt_text=vlm_prompt
+        )
         state = state_data.get("state", "OVERWORLD")
         reasoning = state_data.get("reasoning", "")
         llm_actions = state_data.get("actions", [])
         scratchpad = state_data.get("scratchpad_update", "")
+        
+        # Save the current state as the "previous frame" for the NEXT tick
+        previous_frame = frames[-1]
         
         ui_queue.put({
             "state": state,

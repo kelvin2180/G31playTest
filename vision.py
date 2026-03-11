@@ -44,27 +44,33 @@ class VisionController:
         """Captures frame directly from the python mgba emulator instance."""
         return self.emulator.get_frame()
 
-    def analyze_frames(self, frames, prompt_text="Analyze these sequential game frames. What is the current game state?"):
+    def analyze_frames(self, frames, previous_frame=None, prompt_text="Analyze these sequential game frames. What is the current game state?"):
         """Sends frames to Gemini and returns parsed JSON state + metrics."""
         if not frames:
             return {"state": "OVERWORLD", "reasoning": "No frames"}, 0, 0, "{}"
 
-        # Encode frames as JPEG to send to Gemini
-        pil_images = []
+        contents = []
+        
+        # Inject the previous frame if it exists
+        if previous_frame is not None:
+            contents.append("IMAGE 1: State of the game BEFORE your last actions:")
+            rgb_prev = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2RGB)
+            _, buffer_prev = cv2.imencode('.jpg', rgb_prev)
+            contents.append(types.Part.from_bytes(data=buffer_prev.tobytes(), mime_type='image/jpeg'))
+            contents.append("IMAGES 2-5: Current sequential frames AFTER your actions:")
+        else:
+            contents.append("IMAGES 1-4: Current sequential frames:")
+
+        # Encode current frames as JPEG to send to Gemini
         for frame in frames:
             # Convert BGR to RGB for Gemini/PIL
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             _, buffer = cv2.imencode('.jpg', rgb_frame)
-            
-            part = types.Part.from_bytes(
-                data=buffer.tobytes(),
-                mime_type='image/jpeg'
-            )
-            pil_images.append(part)
+            contents.append(types.Part.from_bytes(data=buffer.tobytes(), mime_type='image/jpeg'))
 
         start_time = time.time()
         try:
-            contents = pil_images + [prompt_text]
+            contents.append(prompt_text)
             
             response = self.client.models.generate_content(
                 model=self.model_name,
