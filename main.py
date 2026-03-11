@@ -1,0 +1,237 @@
+import threading
+import queue
+import time
+import os
+import cv2
+import customtkinter as ctk
+from PIL import Image
+import tkinter.filedialog as filedialog
+
+from vision import VisionController
+from memory import Memory
+from agents.orchestrator import Orchestrator
+from emulator import EmulatorController
+
+ui_queue = queue.Queue()
+global_emulator = None
+agent_paused = True # Start paused so human can play
+
+def emulator_thread():
+    """Real-time 60FPS Game Loop"""
+    global global_emulator, agent_paused
+    frame_count = 0
+    
+    while True:
+        if global_emulator is None:
+            time.sleep(0.1)
+            continue
+            
+        start_time = time.time()
+        
+        # Step emulator forward 1 frame
+        global_emulator.run_frame(use_human_input=agent_paused)
+        frame_count += 1
+        
+        # Save a frame to the AI buffer every ~0.5 seconds (30 frames)
+        if frame_count % 30 == 0:
+            global_emulator.add_to_buffer()
+            
+        # Push frame to UI (~30 FPS to save CPU)
+        if frame_count % 2 == 0:
+            img = global_emulator.get_frame()
+            rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            ui_queue.put({"image": Image.fromarray(rgb_frame)})
+            
+        # Sleep to maintain 60FPS speed
+        elapsed = time.time() - start_time
+        sleep_time = (1.0 / 60.0) - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
+
+def agent_thread():
+    """15-Second VLM Brain Loop"""
+    global global_emulator, agent_paused
+    vision = None
+    memory = Memory()
+    orchestrator = Orchestrator()
+    
+    while True:
+        # Rate limit: 15 seconds. (We do it in 1s chunks so we don't freeze on shutdown)
+        for _ in range(15):
+            time.sleep(1)
+            # If we unpause mid-sleep, we keep waiting. 
+        
+        if agent_paused or global_emulator is None:
+            continue
+            
+        if vision is None:
+            vision = VisionController(global_emulator)
+            
+        ui_queue.put({"action_status": "Thinking..."})
+        
+        # 1. Grab buffered frames
+        frames = global_emulator.get_recent_frames()
+        if not frames:
+            continue
+            
+        # 2. VLM Perception
+        state_data, latency, tokens, raw_json = vision.analyze_frames(frames)
+        state = state_data.get("state", "OVERWORLD")
+        reasoning = state_data.get("reasoning", "")
+        
+        ui_queue.put({
+            "state": state,
+            "json": raw_json,
+            "metrics": f"Latency: {latency:.2f}s | Tokens: {tokens}"
+        })
+        
+        # 3. Quick Route Dialogue
+        if state == "DIALOGUE":
+            actions = [('tap', 'x'), ('tap', 'z'), ('tap', 'x'), ('tap', 'z')]
+            scratchpad = "Mashing through dialogue."
+        else:
+            worker = orchestrator.get_worker(state)
+            actions, scratchpad = worker.act(frames, memory.get_journal(), memory.get_scratchpad())
+        
+        memory.update_scratchpad(scratchpad)
+        
+        ui_queue.put({
+            "action_status": f"Agent Decided: {actions}\nReasoning: {reasoning}",
+            "scratchpad": scratchpad,
+            "journal": memory.get_journal()
+        })
+        
+        # 4. Queue up actions asynchronously for the emulator loop
+        global_emulator.queue_agent_actions(actions)
+
+
+class AgentApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Pokemon AI Agent Monitor")
+        self.geometry("1100x700")
+        
+        ctk.set_appearance_mode("Dark")
+        
+        # Layout Config
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        
+        # UI Elements - Top Left (Vision)
+        self.vision_frame = ctk.CTkFrame(self)
+        self.vision_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.load_rom_btn = ctk.CTkButton(self.vision_frame, text="Load GBA ROM", command=self.load_rom)
+        self.load_rom_btn.pack(pady=5)
+        
+        # Pause/Resume Button
+        self.pause_btn = ctk.CTkButton(self.vision_frame, text="Agent Paused (Manual Control)", fg_color="red", hover_color="darkred", command=self.toggle_pause)
+        self.pause_btn.pack(pady=5)
+        
+        self.vision_label = ctk.CTkLabel(self.vision_frame, text="Select a ROM to start...")
+        self.vision_label.pack(expand=True, fill="both")
+        
+        # UI Elements - Bottom Left (Agent State)
+        self.state_frame = ctk.CTkFrame(self)
+        self.state_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.state_label = ctk.CTkLabel(self.state_frame, text="State: UNKNOWN", font=("Arial", 24, "bold"))
+        self.state_label.pack(pady=10)
+        self.action_label = ctk.CTkLabel(self.state_frame, text="Action: None", font=("Arial", 14))
+        self.action_label.pack(pady=10)
+        
+        # UI Elements - Top Right (Memory)
+        self.mem_frame = ctk.CTkFrame(self)
+        self.mem_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        ctk.CTkLabel(self.mem_frame, text="Master Journal", font=("Arial", 14, "bold")).pack()
+        self.journal_text = ctk.CTkTextbox(self.mem_frame, height=80)
+        self.journal_text.pack(fill="x", padx=5, pady=5)
+        ctk.CTkLabel(self.mem_frame, text="Scratchpad", font=("Arial", 14, "bold")).pack()
+        self.scratchpad_text = ctk.CTkTextbox(self.mem_frame, height=80)
+        self.scratchpad_text.pack(fill="x", padx=5, pady=5)
+        
+        # UI Elements - Bottom Right (LLM & Metrics)
+        self.llm_frame = ctk.CTkFrame(self)
+        self.llm_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+        self.metrics_label = ctk.CTkLabel(self.llm_frame, text="Latency: 0s | Tokens: 0", font=("Arial", 12, "bold"))
+        self.metrics_label.pack(pady=5)
+        ctk.CTkLabel(self.llm_frame, text="LLM JSON Trace").pack()
+        self.json_text = ctk.CTkTextbox(self.llm_frame)
+        self.json_text.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Bind keyboard events for manual control
+        self.bind("<KeyPress>", self.on_key_press)
+        self.bind("<KeyRelease>", self.on_key_release)
+        
+        # Start Threads
+        threading.Thread(target=emulator_thread, daemon=True).start()
+        threading.Thread(target=agent_thread, daemon=True).start()
+        
+        self.update_ui()
+
+    def toggle_pause(self):
+        global agent_paused
+        agent_paused = not agent_paused
+        if agent_paused:
+            self.pause_btn.configure(text="Agent Paused (Manual Control)", fg_color="red", hover_color="darkred")
+            ui_queue.put({"action_status": "Paused. Play manually with Arrows, Z, X, Enter."})
+        else:
+            self.pause_btn.configure(text="Agent Active (Autonomous)", fg_color="green", hover_color="darkgreen")
+            ui_queue.put({"action_status": "Agent active. Waiting for next 15s cycle..."})
+
+    def on_key_press(self, event):
+        if global_emulator and agent_paused:
+            global_emulator.human_press(event.keysym)
+            
+    def on_key_release(self, event):
+        if global_emulator and agent_paused:
+            global_emulator.human_release(event.keysym)
+
+    def load_rom(self):
+        global global_emulator
+        rom_path = filedialog.askopenfilename(filetypes=[("GBA ROMs", "*.gba"), ("All Files", "*.*")])
+        if rom_path:
+            self.load_rom_btn.pack_forget() # Hide button
+            global_emulator = EmulatorController(rom_path)
+            # Note: We don't wake up the agent thread here. 
+            # It wakes up automatically, and you control it via the Pause button.
+
+    def update_ui(self):
+        try:
+            while not ui_queue.empty():
+                data = ui_queue.get_nowait()
+                
+                if "image" in data:
+                    img = data["image"]
+                    img = img.resize((480, 320), Image.Resampling.NEAREST)
+                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(480, 320))
+                    self.vision_label.configure(image=ctk_img, text="")
+                
+                if "state" in data:
+                    self.state_label.configure(text=f"State: {data['state']}")
+                if "action_status" in data:
+                    self.action_label.configure(text=f"{data['action_status']}")
+                    
+                if "journal" in data:
+                    self.journal_text.delete("0.0", "end")
+                    self.journal_text.insert("0.0", data["journal"])
+                if "scratchpad" in data:
+                    self.scratchpad_text.delete("0.0", "end")
+                    self.scratchpad_text.insert("0.0", data["scratchpad"])
+                    
+                if "json" in data:
+                    self.json_text.delete("0.0", "end")
+                    self.json_text.insert("0.0", data["json"])
+                if "metrics" in data:
+                    self.metrics_label.configure(text=data["metrics"])
+                    
+        except queue.Empty:
+            pass
+        
+        self.after(20, self.update_ui) # Refresh at ~50Hz
+
+if __name__ == "__main__":
+    app = AgentApp()
+    app.mainloop()

@@ -1,0 +1,48 @@
+You are an expert Python engineer tasked with building an AI agent that plays Pokémon FireRed (GBA) using pure vision and vanilla Python. 
+
+The project is located in `~/fire`. DO NOT use any agentic frameworks like LangGraph, AutoGen, or CrewAI. DO NOT use Pydantic. Keep the architecture extremely lean, relying on standard Python loops, native dictionaries, and the official `google-genai` SDK.
+
+### The Ultimate Goal: A Physical Device 
+This is currently a Proof of Concept (POC) running against an open desktop emulator (mGBA). However, the final goal is to connect this agent to an external physical device (e.g., pointing a webcam at a real Game Boy Advance and sending inputs via a microcontroller). 
+
+**Crucial Constraint:** The agent must treat the game as a complete black box. It cannot hook into the emulator's internal step functions, read memory, or use emulator-specific APIs (like `stable-retro`). It must look at a screen (pixels) and press buttons (keystrokes) in real-time, just like a human.
+
+### Architecture Overview
+The system follows a Hierarchical Orchestrator-Worker pattern using a 2-3 second tick rate.
+
+1.  **Vision/Input Layer (`pygetwindow`, `mss`, `opencv-python`, `pynput`)**: 
+    *   Uses `pygetwindow` to automatically find the "mGBA" emulator window and get its coordinates.
+    *   Uses `mss` to capture that specific screen region.
+    *   **Crucial:** Immediately converts the `mss` screenshot into an OpenCV (`cv2`) numpy array. All downstream logic, buffering, and resizing must use OpenCV so that when we transition to a physical capture card (`cv2.VideoCapture(0)`), we only have to change the capture function and the rest of the pipeline remains untouched.
+    *   Buffers 3 to 4 frames over a 2.5-second window.
+    *   Sends virtual keystrokes to control the game (e.g., z=A, x=B, Enter=Start, Arrows=D-Pad) using `pynput` while ensuring the mGBA window is active.
+2.  **Perception Layer (`google-genai` + Gemini 2.0 Flash-Lite)**: 
+    *   Takes the 4 buffered frames.
+    *   Uses native JSON Schema (via `response_schema` dictionary in the SDK, NO Pydantic) to force the model to return a structured classification of the game state: `OVERWORLD`, `BATTLE`, `MENU`, or `DIALOGUE`.
+3.  **Memory System**: 
+    *   `master_journal.txt`: A string/file storing long-term goals (managed by the Goal Agent).
+    *   `scratchpad`: A short-term string memory passed between turns (managed by Worker Agents to remember things like "blocked north").
+4.  **Routing & Execution (Vanilla Python)**: 
+    *   If `DIALOGUE`: Fast-path. Mash 'x' and 'z' to burn through text. Do not invoke complex agents.
+    *   If `OVERWORLD`, `BATTLE`, or `MENU`: Route the state, frames, and memory to the respective Worker Agent (`runner_agent`, `battle_agent`, `menu_agent`).
+    *   Worker agents return a list of specific keystroke instructions and an updated scratchpad.
+
+### UI Dashboard (CustomTkinter)
+The system must include a local desktop UI (using `customtkinter` and `PIL`) running on the main thread, while the Agent logic runs in a background `threading.Thread`.
+The UI must display:
+*   The current live frame from the emulator/camera feed.
+*   Current Game State and the Actions currently being executed.
+*   The contents of the Master Journal and Scratchpad.
+*   A trace of the most recent JSON output from the Gemini API.
+*   API usage metrics (Token counts, API latency).
+
+### Implementation Requirements
+Please scaffold the project in `~/fire`. Generate the following files:
+1.  `requirements.txt`: Include `google-genai`, `opencv-python`, `mss`, `pygetwindow`, `pynput`, `customtkinter`, `pillow`.
+2.  `vision.py`: Logic for finding the mGBA window with `pygetwindow`, capturing screenshots with `mss`, converting them to OpenCV format, and sending the 4-frame burst to Gemini using the native JSON schema. Must track and return token usage and latency.
+3.  `memory.py`: Simple handlers for reading/writing the `master_journal` and `scratchpad`.
+4.  `agents/`: Directory containing `orchestrator.py`, `runner_agent.py`, `battle_agent.py`, and `menu_agent.py`. These should contain the logic for deciding keystrokes based on the JSON state and journal.
+5.  `controller.py`: Wrapper for `pynput` to execute actions like `hold('up', 1.0)`, `tap('z')`. It should ensure the mGBA window is focused if possible before sending inputs.
+6.  `main.py`: The entry point. It should initialize the CustomTkinter UI, start the agent background thread, and safely share data between the thread and the UI using thread-safe queues or variables.
+
+Please provide the complete, functional code for these files. Ensure all LLM calls use the new `google-genai` SDK syntax, specifically passing schemas as native python dictionaries to `config={"response_schema": {...}}`.

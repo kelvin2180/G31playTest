@@ -1,0 +1,7 @@
+google-genai
+opencv-python
+mss
+
+pynput
+customtkinter
+pillowpython-dotenv
