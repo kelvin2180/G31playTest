@@ -172,11 +172,32 @@ def agent_thread():
         
         metrics_str = f"Calls: {total_model_calls} | In: {total_in_tokens} | Out: {total_out_tokens} | Cost: ${total_cost:.5f}"
         
+        # Create a single "filmstrip" image showing what the model saw to pass to UI
+        filmstrip_pil = None
+        try:
+            filmstrip_images = []
+            if previous_frame_copy is not None:
+                filmstrip_images.append(previous_frame_copy)
+            filmstrip_images.extend(frames)
+            
+            # Resize them to a uniform height to stack them horizontally cleanly
+            h, w = filmstrip_images[0].shape[:2]
+            scale = 80 / h  # Resize height to 80px (Width will be 120px per frame, up to 1080px total)
+            resized_images = [cv2.resize(img, (int(w * scale), 80)) for img in filmstrip_images]
+            
+            # Combine horizontally
+            filmstrip = np.hstack(resized_images)
+            filmstrip_rgb = cv2.cvtColor(filmstrip, cv2.COLOR_BGR2RGB)
+            filmstrip_pil = Image.fromarray(filmstrip_rgb)
+        except Exception as e:
+            print(f"Failed to create vision filmstrip: {e}")
+
         ui_queue.put({
             "state": state,
             "json": raw_json,
             "prompt": vlm_prompt,
-            "metrics": metrics_str
+            "metrics": metrics_str,
+            "filmstrip": filmstrip_pil
         })
         
         # Log to terminal and filesystem for debugging
@@ -189,28 +210,10 @@ def agent_thread():
             f.write(vlm_prompt)
             f.write("\n\n=== JSON RESPONSE ===\n")
             f.write(raw_json)
-            
-        # Create a single "filmstrip" image showing what the model saw
-        try:
-            filmstrip_images = []
-            if previous_frame_copy is not None:
-                filmstrip_images.append(previous_frame_copy)
-            filmstrip_images.extend(frames)
-            
-            # Resize them to a uniform height to stack them horizontally cleanly
-            h, w = filmstrip_images[0].shape[:2]
-            scale = 120 / h  # Resize height to 120px for the filmstrip
-            resized_images = [cv2.resize(img, (int(w * scale), 120)) for img in filmstrip_images]
-            
-            # Combine horizontally
-            filmstrip = np.hstack(resized_images)
-            cv2.imwrite(os.path.join(log_dir, f"{timestamp}_vision.jpg"), filmstrip)
-        except Exception as e:
-            print(f"Failed to save vision filmstrip: {e}")
 
         print("\n" + "="*50)
         print(f"[{time.strftime('%H:%M:%S')}] AGENT BRAIN TICK ({agent_tick_frequency}s)")
-        print(f"Saved Prompt & Vision Filmstrip to ~/fire/logs/{timestamp}_...")
+        print(f"Saved Prompt to ~/fire/logs/{timestamp}_prompt.txt")
         
         # Convert LLM action strings to emulator commands
         key_mapping = {
@@ -246,7 +249,7 @@ class AgentApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Pokemon AI Agent Monitor")
-        self.geometry("1100x700")
+        self.geometry("1100x820")
         
         ctk.set_appearance_mode("Dark")
         
@@ -255,6 +258,7 @@ class AgentApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0) # Bottom row for filmstrip
         
         # UI Elements - Top Left (Vision)
         self.vision_frame = ctk.CTkFrame(self)
@@ -324,6 +328,13 @@ class AgentApp(ctk.CTk):
         ctk.CTkLabel(self.llm_frame, text="LLM Trace (Prompt & Response)").pack()
         self.trace_text = ctk.CTkTextbox(self.llm_frame, wrap="word")
         self.trace_text.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # UI Elements - Bottom Row (Filmstrip)
+        self.filmstrip_frame = ctk.CTkFrame(self)
+        self.filmstrip_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+        ctk.CTkLabel(self.filmstrip_frame, text="Last VLM Vision Filmstrip (What the AI saw):", font=("Arial", 12, "bold")).pack(anchor="w", padx=10, pady=(5, 0))
+        self.filmstrip_label = ctk.CTkLabel(self.filmstrip_frame, text="Waiting for first agent tick...")
+        self.filmstrip_label.pack(expand=True, fill="both", pady=5)
         
         # Bind keyboard events for manual control
         self.bind("<KeyPress>", self.on_key_press)
@@ -421,6 +432,10 @@ class AgentApp(ctk.CTk):
                     self.trace_text.insert("0.0", trace_content)
                 if "metrics" in data:
                     self.metrics_label.configure(text=data["metrics"])
+                if "filmstrip" in data and data["filmstrip"] is not None:
+                    img = data["filmstrip"]
+                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
+                    self.filmstrip_label.configure(image=ctk_img, text="")
                     
         except queue.Empty:
             pass
