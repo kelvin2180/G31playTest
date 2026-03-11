@@ -101,6 +101,8 @@ class EmulatorController:
 
     def get_frame(self):
         pil_img = self.image.to_pil()
+        # Explicitly crop to desired dimensions in case buffer is padded
+        pil_img = pil_img.crop((0, 0, self.width, self.height))
         img_np = np.array(pil_img)
         return cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
         

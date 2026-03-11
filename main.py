@@ -278,13 +278,13 @@ class AgentApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Pokemon AI Agent Monitor")
-        self.geometry("1100x820")
+        self.geometry("1300x900")
         
         ctk.set_appearance_mode("Dark")
         
         # Layout Config
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=3) # Give more weight to the game feed
+        self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=0) # Bottom row for filmstrip
@@ -435,8 +435,9 @@ class AgentApp(ctk.CTk):
                 
                 if "image" in data:
                     img = data["image"]
-                    img = img.resize((480, 320), Image.Resampling.NEAREST)
-                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(480, 320))
+                    # Scale to 3x GBA resolution (720x480)
+                    img = img.resize((720, 480), Image.Resampling.NEAREST)
+                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(720, 480))
                     self.vision_label.configure(image=ctk_img, text="")
                 
                 if "state" in data:
