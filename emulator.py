@@ -1,7 +1,7 @@
 import mgba.core
 import mgba.image
 import mgba.log
-from mgba.core import lib
+from mgba.core import lib, ffi
 import numpy as np
 import cv2
 import collections
@@ -115,8 +115,10 @@ class EmulatorController:
         try:
             state_data = self.core.save_raw_state()
             if state_data:
+                # state_data is a CData object. We must convert it to Python bytes.
+                byte_data = bytes(ffi.buffer(state_data))
                 with open(filepath, 'wb') as f:
-                    f.write(state_data)
+                    f.write(byte_data)
         except Exception as e:
             print(f"Failed to save state: {e}")
                 
@@ -125,7 +127,8 @@ class EmulatorController:
         if os.path.exists(filepath):
             try:
                 with open(filepath, 'rb') as f:
-                    state_data = f.read()
-                self.core.load_raw_state(state_data)
+                    byte_data = f.read()
+                # mgba-python load_raw_state expects the raw bytes
+                self.core.load_raw_state(byte_data)
             except Exception as e:
                 print(f"Failed to load state: {e}")
