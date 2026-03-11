@@ -75,7 +75,7 @@ class EmulatorController:
             self.action_delay -= 1
             if self.action_delay == 0:
                 self.agent_keys_state = 0 # Release key
-                self.post_action_delay = 5 # Buffer 5 frames before next button press
+                self.post_action_delay = 15 # Buffer 15 frames (0.25s) before next button press
         elif self.action_queue:
             action = self.action_queue.pop(0)
             cmd = action[0]
